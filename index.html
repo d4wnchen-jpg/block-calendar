@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>块日历 · 深度块 / 求职块</title>
+<style>
+  :root{
+    --bg:#f6f6f4; --panel:#ffffff; --panel-2:#fbfbfa;
+    --text:#1c1f24; --muted:#6b7280; --border:#e3e4e8;
+    --deep:#2f7d4f; --deep-soft:#e6f4ea; --job:#2563eb; --job-soft:#e8effd;
+    --shadow:0 18px 50px rgba(15,23,42,.16);
+    --today:#111827; --hover:#c9ccd3;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#0f1115; --panel:#171a20; --panel-2:#1b1f26; --text:#e8eaed; --muted:#9aa1ab; --border:#2a2f38; --deep:#6fcf97; --deep-soft:#16301f; --job:#7aa7ff; --job-soft:#141f38; --shadow:0 18px 50px rgba(0,0,0,.5); --today:#e8eaed; --hover:#4a515e; }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:980px;margin:0 auto;padding:28px 20px 60px}
+  .top{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+  h1{font-size:22px;margin:0;letter-spacing:.2px}
+  .sub{margin:4px 0 0;color:var(--muted);font-size:12.5px}
+  .stats{display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--muted);text-align:right}
+  .stats b{color:var(--text);font-weight:600}
+  .toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:6px 0 14px}
+  .nav{display:flex;align-items:center;gap:8px}
+  #monthLabel{font-size:15px;min-width:112px;text-align:center}
+  .btn{font:inherit;font-size:13px;padding:7px 12px;border-radius:9px;border:1px solid var(--border);background:var(--panel);color:var(--text);cursor:pointer;transition:background .12s,border-color .12s,transform .12s}
+  .btn:hover{background:var(--panel-2);border-color:var(--hover)}
+  .btn:active{transform:translateY(1px)}
+  .btn.icon{padding:7px 11px;line-height:1}
+  .btn.primary{background:var(--deep);border-color:var(--deep);color:#fff}
+  .btn.primary:hover{filter:brightness(1.06)}
+  .btn.danger{color:#c0392b;border-color:var(--border);background:transparent}
+  .btn.danger:hover{background:rgba(192,57,43,.08)}
+  .menu{position:relative}
+  .menu summary{list-style:none}
+  .menu summary::-webkit-details-marker{display:none}
+  .menu-body{position:absolute;right:0;top:calc(100% + 6px);z-index:20;background:var(--panel);border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 30px rgba(15,23,42,.15);padding:6px;display:flex;flex-direction:column;min-width:160px}
+  .menu-body button{font:inherit;font-size:13px;text-align:left;padding:8px 10px;border:0;border-radius:8px;background:transparent;color:var(--text);cursor:pointer}
+  .menu-body button:hover{background:var(--panel-2)}
+  .weekhead{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin:0 0 8px}
+  .weekhead span{min-width:0;text-align:center;font-size:12px;color:var(--muted);padding:2px 0}
+  .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+  .cell{position:relative;min-width:0;min-height:86px;overflow:hidden;touch-action:manipulation;-webkit-tap-highlight-color:transparent;border:1px solid var(--border);border-radius:12px;background:var(--panel);padding:8px 9px;display:flex;flex-direction:column;gap:5px;cursor:pointer;font:inherit;color:inherit;text-align:left;transition:transform .1s,border-color .12s,box-shadow .12s}
+  .cell:hover{border-color:var(--hover);transform:translateY(-1px);box-shadow:0 4px 14px rgba(15,23,42,.06)}
+  .cell.empty{min-width:0;background:transparent;border-color:transparent;pointer-events:none;box-shadow:none;min-height:86px}
+  .cell[data-d="1"]{background:#f2f9f4}
+  .cell[data-d="2"]{background:#e4f3e8}
+  .cell[data-d="3"]{background:#d0ebd7}
+  .cell[data-d="4"]{background:#b7e0c2}
+  @media (prefers-color-scheme: dark){
+    .cell[data-d="1"]{background:#141b17}
+    .cell[data-d="2"]{background:#18241c}
+    .cell[data-d="3"]{background:#1d2f23}
+    .cell[data-d="4"]{background:#233a2a}
+  }
+  .cell.today{outline:2px solid var(--today);outline-offset:-2px}
+  .cell.hit::after{content:"✓";position:absolute;top:7px;right:9px;font-size:11px;color:var(--deep);font-weight:700}
+  .dnum{font-size:13.5px;font-weight:600;letter-spacing:.3px}
+  .cell.today .dnum{color:var(--today)}
+  .chips{display:flex;gap:4px;flex-wrap:wrap;min-width:0;min-height:18px}
+  .chip{font-size:10.5px;font-weight:600;padding:1.5px 6px;border-radius:999px;white-space:nowrap}
+  .chip.deep{color:var(--deep);background:var(--deep-soft)}
+  .chip.job{color:var(--job);background:var(--job-soft)}
+  .note{font-size:11px;color:var(--muted);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:14px}
+  .plus{font-size:12px;color:var(--muted);opacity:.45}
+  footer{margin-top:22px;font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:6px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:3px;margin-right:5px;vertical-align:1px}
+  .dot.deep{background:var(--deep)} .dot.job{background:var(--job)}
+  #storageWarn{color:#b45309}
+  .overlay{position:fixed;inset:0;background:rgba(15,23,42,.38);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:18px;z-index:100}
+  .overlay[hidden]{display:none}
+  .modal{width:min(440px,100%);background:var(--panel);border:1px solid var(--border);border-radius:18px;box-shadow:var(--shadow);padding:18px 18px 16px;animation:pop .12s ease-out}
+  @keyframes pop{from{transform:translateY(6px) scale(.99);opacity:.6}to{transform:none;opacity:1}}
+  .modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+  .modal-head h2{font-size:16px;margin:0}
+  .modal-head .btn.icon{border:0;background:transparent;font-size:20px;color:var(--muted);padding:2px 6px}
+  .field{margin-bottom:12px}
+  .field > label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:6px}
+  .seg{display:flex;gap:6px}
+  .segbtn{width:38px;height:34px;border-radius:9px;border:1px solid var(--border);background:transparent;color:var(--text);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+  .segbtn:hover{border-color:var(--hover);background:var(--panel-2)}
+  .segbtn.active[data-kind="d"]{background:var(--deep);border-color:var(--deep);color:#fff}
+  .segbtn.active[data-kind="j"]{background:var(--job);border-color:var(--job);color:#fff}
+  #noteInput{width:100%;font:inherit;font-size:13.5px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--panel-2);color:var(--text);outline:none}
+  #noteInput:focus{border-color:var(--deep);box-shadow:0 0 0 3px rgba(47,125,79,.13)}
+  .modal-actions{display:flex;justify-content:space-between;align-items:center;margin-top:16px}
+  .hintline{font-size:11.5px;color:var(--muted)}
+  @media (max-width: 640px){
+    .wrap{padding:18px 12px 44px}
+    h1{font-size:19px}
+    .stats{text-align:left}
+    .grid,.weekhead{gap:5px}
+    .cell{min-height:62px;padding:5px 6px;border-radius:9px;gap:2px}
+    .cell.empty{min-height:62px}
+    .dnum{font-size:12px}
+    .chip{font-size:9.5px;padding:0 4px}
+    .note{display:none}
+    .cell.hit::after{font-size:9px;top:5px;right:6px}
+    .segbtn{width:34px;height:32px}
+    #monthLabel{min-width:96px;font-size:14px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div><h1>块日历</h1><p class="sub">深度块 · 求职块 · 一句话</p></div>
+    <div class="stats" id="stats"></div>
+  </header>
+  <div class="toolbar">
+    <div class="nav">
+      <button class="btn icon" id="prev" aria-label="上个月">‹</button>
+      <strong id="monthLabel"></strong>
+      <button class="btn icon" id="next" aria-label="下个月">›</button>
+      <button class="btn" id="todayBtn">今天</button>
+    </div>
+    <details class="menu" id="dataMenu">
+      <summary class="btn">数据</summary>
+      <div class="menu-body">
+        <button id="exportJson">导出 JSON 备份</button>
+        <button id="exportCsv">导出 CSV</button>
+        <button id="importBtn">导入 JSON</button>
+        <input id="importFile" type="file" accept=".json,application/json" hidden>
+      </div>
+    </details>
+  </div>
+  <div class="weekhead"><span>周一</span><span>周二</span><span>周三</span><span>周四</span><span>周五</span><span>周六</span><span>周日</span></div>
+  <div id="grid" class="grid"></div>
+  <footer>
+    <div class="legend"><span><i class="dot deep"></i>深度块（研究 / 作品 / 技能）</span><span><i class="dot job"></i>求职块（投递 / 沟通 / 面试准备）</span><span>深度 ≥2 = 达标日</span></div>
+    <p style="margin:0">点格子填写 · 自动保存 · 数据只存在这个浏览器里，建议每周导出一次 JSON 备份</p>
+    <p id="storageWarn" hidden>当前浏览器不允许本地存储，数据只在本次打开期间有效——请用「数据 → 导出 JSON 备份」。</p>
+  </footer>
+</div>
+
+<div id="overlay" class="overlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-head"><h2 id="modalTitle"></h2><button class="btn icon" id="closeX" aria-label="关闭">×</button></div>
+    <div class="field"><label>深度块</label><div class="seg" id="segDeep"></div></div>
+    <div class="field"><label>求职块</label><div class="seg" id="segJob"></div></div>
+    <div class="field"><label for="noteInput">一句话</label><input id="noteInput" maxlength="80" placeholder="今天做了什么 / 卡在哪 / 下一步"></div>
+    <p class="hintline" style="margin:0">点数字选择 · 输入自动保存 · Esc 关闭</p>
+    <div class="modal-actions"><button class="btn danger" id="deleteDay">删除这天</button><button class="btn primary" id="doneBtn">完成</button></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  var KEY = 'block-calendar-v1';
+  var state = { entries: {} };
+  var view = { y: 0, m: 0 };
+  var editing = null;
+  var storageOK = true;
+  var WD = ['一','二','三','四','五','六','日'];
+
+  function $(sel){ return document.querySelector(sel); }
+  function pad(n){ return (n < 10 ? '0' : '') + n; }
+  function dateKey(d){ return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function parseKey(k){ var p = k.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); }
+  function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); }
+  function clampInt(v, min, max){ v = Math.round(Number(v) || 0); if(v < min) v = min; if(v > max) v = max; return v; }
+
+  function load(){
+    try{
+      var raw = localStorage.getItem(KEY);
+      if(!raw) return;
+      var o;
+      try{ o = JSON.parse(raw); }catch(e){ return; }
+      if(o && o.entries && typeof o.entries === 'object') state.entries = o.entries;
+    }catch(e){ storageOK = false; }
+  }
+  function persist(){
+    if(!storageOK) return;
+    try{ localStorage.setItem(KEY, JSON.stringify({ version: 1, entries: state.entries })); }
+    catch(e){ storageOK = false; var w = $('#storageWarn'); if(w) w.hidden = false; }
+  }
+  function getEntry(k){
+    var e = state.entries[k];
+    if(!e) return { d: 0, j: 0, n: '' };
+    return { d: clampInt(e.d, 0, 9), j: clampInt(e.j, 0, 9), n: String(e.n || '').slice(0, 120) };
+  }
+  function setEntry(k, patch){
+    var cur = getEntry(k);
+    if('d' in patch) cur.d = clampInt(patch.d, 0, 9);
+    if('j' in patch) cur.j = clampInt(patch.j, 0, 9);
+    if('n' in patch) cur.n = String(patch.n || '').slice(0, 120);
+    if(cur.d === 0 && cur.j === 0 && !cur.n.trim()) delete state.entries[k];
+    else state.entries[k] = cur;
+    persist();
+  }
+
+  function render(){
+    var y = view.y, m = view.m;
+    $('#monthLabel').textContent = y + ' 年 ' + (m + 1) + ' 月';
+    var grid = $('#grid');
+    grid.innerHTML = '';
+    var first = new Date(y, m, 1);
+    var offset = (first.getDay() + 6) % 7;
+    var dim = new Date(y, m + 1, 0).getDate();
+    var tk = dateKey(new Date());
+    var i;
+    for(i = 0; i < offset; i++){
+      var e0 = document.createElement('div'); e0.className = 'cell empty'; grid.appendChild(e0);
+    }
+    for(var day = 1; day <= dim; day++){
+      var k = dateKey(new Date(y, m, day));
+      var e = getEntry(k);
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'cell';
+      btn.dataset.date = k;
+      if(k === tk) btn.classList.add('today');
+      if(e.d > 0) btn.dataset.d = Math.min(e.d, 4);
+      if(e.d >= 2) btn.classList.add('hit');
+      var title = (m + 1) + '月' + day + '日';
+      if(e.d || e.j || e.n) title += '\n深 ' + e.d + ' · 求 ' + e.j + (e.n ? '\n' + e.n : '');
+      btn.title = title;
+      var chips = '';
+      if(e.d > 0) chips += '<span class="chip deep">深 ' + e.d + '</span>';
+      if(e.j > 0) chips += '<span class="chip job">求 ' + e.j + '</span>';
+      var content = e.n ? esc(e.n) : ((!e.d && !e.j) ? '<span class="plus">＋</span>' : '');
+      btn.innerHTML = '<span class="dnum">' + day + '</span>'
+        + '<span class="chips">' + chips + '</span>'
+        + '<span class="note">' + content + '</span>';
+      grid.appendChild(btn);
+    }
+    var total = offset + dim;
+    var tail = (7 - (total % 7)) % 7;
+    for(i = 0; i < tail; i++){
+      var e1 = document.createElement('div'); e1.className = 'cell empty'; grid.appendChild(e1);
+    }
+    renderStats();
+  }
+
+  function renderStats(){
+    var now = new Date();
+    var monOff = (now.getDay() + 6) % 7;
+    var mon = new Date(now.getFullYear(), now.getMonth(), now.getDate() - monOff);
+    var wkD = 0, wkJ = 0, i;
+    for(i = 0; i < 7; i++){
+      var we = getEntry(dateKey(new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + i)));
+      wkD += we.d; wkJ += we.j;
+    }
+    var y = view.y, m = view.m;
+    var dim = new Date(y, m + 1, 0).getDate();
+    var moD = 0, moJ = 0, hit = 0;
+    for(var day = 1; day <= dim; day++){
+      var en = getEntry(dateKey(new Date(y, m, day)));
+      moD += en.d; moJ += en.j;
+      if(en.d >= 2) hit++;
+    }
+    $('#stats').innerHTML = '<span>本月 深 <b>' + moD + '</b> · 求 <b>' + moJ + '</b> · 达标 <b>' + hit + '</b> 天</span>'
+      + '<span>本周 深 <b>' + wkD + '</b> · 求 <b>' + wkJ + '</b></span>';
+  }
+
+  function step(n){
+    view.m += n;
+    if(view.m < 0){ view.m = 11; view.y--; }
+    if(view.m > 11){ view.m = 0; view.y++; }
+    render();
+  }
+
+  function buildSeg(el, max, value, kind){
+    el.innerHTML = '';
+    for(var v = 0; v <= max; v++){
+      (function(v){
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'segbtn' + (v === value ? ' active' : '');
+        b.textContent = v;
+        b.dataset.kind = kind;
+        b.dataset.v = v;
+        b.addEventListener('click', function(){
+          if(!editing) return;
+          var patch = {};
+          patch[kind] = v;
+          setEntry(editing, patch);
+          buildSeg(el, max, v, kind);
+          render();
+        });
+        el.appendChild(b);
+      })(v);
+    }
+  }
+
+  function openEditor(k){
+    editing = k;
+    var e = getEntry(k);
+    var d = parseKey(k);
+    $('#modalTitle').textContent = (d.getMonth() + 1) + ' 月 ' + d.getDate() + ' 日 · 周' + WD[(d.getDay() + 6) % 7];
+    $('#noteInput').value = e.n;
+    buildSeg($('#segDeep'), 5, e.d, 'd');
+    buildSeg($('#segJob'), 4, e.j, 'j');
+    $('#overlay').hidden = false;
+    setTimeout(function(){ try{ $('#noteInput').focus(); }catch(e){} }, 0);
+  }
+  function closeEditor(){
+    $('#overlay').hidden = true;
+    editing = null;
+    render();
+  }
+
+  function download(name, text, type){
+    var blob = new Blob([text], { type: type });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1500);
+  }
+  function exportJson(){
+    $('#dataMenu').removeAttribute('open');
+    var data = { version: 1, exportedAt: new Date().toISOString(), entries: state.entries };
+    download('块日历-备份-' + dateKey(new Date()) + '.json', JSON.stringify(data, null, 2), 'application/json');
+  }
+  function csvEscape(v){
+    v = String(v);
+    return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+  }
+  function exportCsv(){
+    $('#dataMenu').removeAttribute('open');
+    var keys = Object.keys(state.entries).sort();
+    var lines = ['date,deep_blocks,job_blocks,note'];
+    keys.forEach(function(k){
+      var e = getEntry(k);
+      lines.push([k, e.d, e.j, csvEscape(e.n)].join(','));
+    });
+    download('块日历-' + dateKey(new Date()) + '.csv', '\ufeff' + lines.join('\r\n'), 'text/csv;charset=utf-8');
+  }
+  function importFile(ev){
+    $('#dataMenu').removeAttribute('open');
+    var f = ev.target.files && ev.target.files[0];
+    if(!f) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      try{
+        var o = JSON.parse(reader.result);
+        var entries = (o && typeof o === 'object' && o.entries) ? o.entries : o;
+        if(!entries || typeof entries !== 'object' || Array.isArray(entries)) throw new Error('不是有效的 JSON 数据');
+        var n = 0;
+        Object.keys(entries).forEach(function(k){
+          if(!/^\d{4}-\d{2}-\d{2}$/.test(k)) return;
+          var v = entries[k] || {};
+          var d = clampInt(v.d, 0, 9), j = clampInt(v.j, 0, 9), note = String(v.n || '').slice(0, 120);
+          if(d || j || note.trim()){ state.entries[k] = { d: d, j: j, n: note }; n++; }
+        });
+        persist(); render();
+        alert('已导入 ' + n + ' 天记录');
+      }catch(err){ alert('导入失败：' + err.message); }
+      finally { ev.target.value = ''; }
+    };
+    reader.readAsText(f);
+  }
+
+  function bind(){
+    $('#prev').addEventListener('click', function(){ step(-1); });
+    $('#next').addEventListener('click', function(){ step(1); });
+    $('#todayBtn').addEventListener('click', function(){
+      var n = new Date();
+      view = { y: n.getFullYear(), m: n.getMonth() };
+      render();
+    });
+    $('#grid').addEventListener('click', function(ev){
+      var cell = ev.target.closest('.cell[data-date]');
+      if(cell) openEditor(cell.dataset.date);
+    });
+    $('#closeX').addEventListener('click', closeEditor);
+    $('#doneBtn').addEventListener('click', closeEditor);
+    $('#overlay').addEventListener('click', function(ev){ if(ev.target === $('#overlay')) closeEditor(); });
+    $('#deleteDay').addEventListener('click', function(){
+      if(!editing) return;
+      if(confirm('删除这一天的记录？')){
+        delete state.entries[editing];
+        persist();
+        closeEditor();
+      }
+    });
+    $('#noteInput').addEventListener('input', function(ev){
+      if(!editing) return;
+      setEntry(editing, { n: ev.target.value });
+      render();
+    });
+    $('#noteInput').addEventListener('keydown', function(ev){
+      if(ev.key === 'Enter'){ ev.preventDefault(); closeEditor(); }
+    });
+    document.addEventListener('keydown', function(ev){
+      if(ev.key === 'Escape' && !$('#overlay').hidden) closeEditor();
+    });
+    $('#exportJson').addEventListener('click', exportJson);
+    $('#exportCsv').addEventListener('click', exportCsv);
+    $('#importBtn').addEventListener('click', function(){ $('#importFile').click(); });
+    $('#importFile').addEventListener('change', importFile);
+    document.addEventListener('click', function(ev){
+      var menu = $('#dataMenu');
+      if(menu.open && !menu.contains(ev.target)) menu.removeAttribute('open');
+    });
+  }
+
+  function init(){
+    load();
+    if(!storageOK){ var w = $('#storageWarn'); if(w) w.hidden = false; }
+    var n = new Date();
+    view = { y: n.getFullYear(), m: n.getMonth() };
+    bind();
+    render();
+  }
+
+  window.__blockCal = {
+    state: state,
+    setView: function(y, m){ view.y = y; view.m = m; render(); },
+    render: render,
+    open: openEditor
+  };
+  init();
+})();
+</script>
+</body>
+</html>
